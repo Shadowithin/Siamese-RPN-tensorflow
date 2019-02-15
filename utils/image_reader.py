@@ -30,6 +30,7 @@ class Image_reader():
                 #===========img_list============
 
                 #=============filter============
+                #filter out boxes which is [0,0,0,0]
                 index=[]
                 for i in range(len(self.cate_list[line])):
                     if not np.all(self.cate_box[line][i]==[0,0,0,0]):
@@ -46,10 +47,11 @@ class Image_reader():
         cate=np.random.choice(list(self.cate_list.keys()))
         img_list=self.cate_list[cate]
         label_list=self.cate_box[cate]
-
+        # randomly select the index for template
         index_t=np.random.choice(range(len(img_list)))
         interval=np.random.choice(range(30,100))
-        index_d=[index_t-interval if index_t-interval>0 else index_t+interval,index_t+interval if index_t+interval<len(img_list) else index_t-interval]
+        #select the index for detection image of a random interval from the template image
+        index_d=[index_t-interval if index_t-interval>0 else 0, index_t+interval if index_t+interval<len(img_list) else len(img_list)]
         index_d=np.random.choice(index_d)
 
         template=cv2.imread(os.path.join(self.root_dir,cate,img_list[index_t]))
@@ -63,6 +65,7 @@ class Image_reader():
 
         return template_p,template_label_p,detection_p,detection_label_p,offset,ratio,detection,detection_label
 
+    # TODO: Modify the data pipeline so as to be compatible with match problem
     def crop_resize(self,img,label,rate=1):
         #label=[x,y,w,h]===x,y is left-top corner
         x,y,w,h=label
@@ -72,8 +75,10 @@ class Image_reader():
         mean_axis=np.mean(img,axis=(0,1)).astype(np.float32)
         p=(w+h)/2
         s=(w+p)*(h+p)
+        # the length of the side to crop, generally side is larger than both w and h
         side=round(np.sqrt(s)*rate)
 
+        #the coordinate of the crop box
         x1=int(x-int((side-w)/2))
         y1=int(y-int((side-h)/2))
         x2=int(x1+side)
@@ -83,6 +88,7 @@ class Image_reader():
         offset[0]=x1-0
         offset[1]=y1-0
 
+        #pad the out-of-range area with channel-wise image mean
         if x1<0:
             img_offset=np.zeros((img.shape[0],-x1,3))+mean_axis
             img=np.hstack([img_offset,img])
@@ -110,6 +116,7 @@ class Image_reader():
         if rate==1:
             resize_img=cv2.resize(crop_img,(127,127))/255.
             ratio=side/127
+            # label: center_x, center_y, width, height
             label=np.array([63,63,w/ratio,h/ratio]).astype(np.int32)
             label=label.astype(np.float32)
         if rate==2:

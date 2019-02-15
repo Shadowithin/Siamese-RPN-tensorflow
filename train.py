@@ -24,7 +24,7 @@ class Train():
         self.model_dir=cfg.model_dir
         self.pre_trained_dir=cfg.pre_trained_dir
         self.anchor_op=Anchor(17,17)
-        self.is_debug=True
+        self.is_debug=False
 
     def train(self):
         template,_,detection,gt_box,_,_=self.reader.get_batch()

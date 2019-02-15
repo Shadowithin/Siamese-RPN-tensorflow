@@ -6,8 +6,8 @@ class Config:
         self._configs = {}
 
         # Training Config
-        self._configs["root_dir"]           = './data/VID_ALL'
-        self._configs["model_dir"]          = './checkpoint/VID_ALL'
+        self._configs["root_dir"]           = './data/vot2013'
+        self._configs["model_dir"]          = './checkpoint/vot2013'
         self._configs["pre_trained_dir"]    = './pretrained'
         self._configs["learning_rate"]      = 0.01
         self._configs["decay_rate"]         = 0.95
