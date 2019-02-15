@@ -31,7 +31,7 @@ def layer(op):
 
 class Network(object):
 
-    def __init__(self, inputs, trainable=True):
+    def __init__(self, inputs, initial_weights=None, trainable=True):
         self.k=5
         # The input nodes for this network
         self.inputs = inputs
@@ -45,6 +45,10 @@ class Network(object):
         self.use_dropout = tf.placeholder_with_default(tf.constant(1.0),
                                                        shape=[],
                                                        name='use_dropout')
+        if initial_weights:
+            self.initial_weights = np.load(initial_weights)
+        else:
+            self.initial_weights=None
         self.setup()
 
     def setup(self):
@@ -96,7 +100,14 @@ class Network(object):
 
     def make_var(self, name, shape):
         '''Creates a new TensorFlow variable.'''
-        return tf.get_variable(name, shape, trainable=self.trainable)
+        if self.initial_weights:
+            try:
+                return tf.get_variable(name, trainable=self.trainable,
+                                       initializer=tf.constant(self.initial_weights[name]))
+            except KeyError:
+                return tf.get_variable(name, shape, trainable=self.trainable)
+        else:
+            return tf.get_variable(name, shape, trainable=self.trainable)
 
     def validate_padding(self, padding):
         '''Verifies that the padding is one of the supported ones.'''
@@ -125,7 +136,7 @@ class Network(object):
         # Convolution for a given input and kernel
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
-            kernel = self.make_var('weights', shape=[k_h, k_w, int(c_i) / group, c_o])
+            kernel = self.make_var(name+'_W', shape=[k_h, k_w, int(c_i) / group, c_o])
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
                 template = convolve(input[0], kernel)
@@ -148,7 +159,7 @@ class Network(object):
                 output=[template,detection]
             # Add the biases
             if biased:
-                biases = self.make_var('biases', [c_o])
+                biases = self.make_var(name+'_b', [c_o])
                 template = tf.nn.bias_add(output[0], biases)
                 detection = tf.nn.bias_add(output[1], biases)
                 output=[template,detection]
@@ -183,7 +194,7 @@ class Network(object):
         # Convolution for a given input and kernel
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
-            kernel = self.make_var('weights', shape=[k_h, k_w, int(c_i) / group, c_o])
+            kernel = self.make_var(name+'_W', shape=[k_h, k_w, int(c_i) / group, c_o])
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
                 output = convolve(input, kernel)
@@ -198,7 +209,7 @@ class Network(object):
                 output = tf.concat(output_groups,3)
             # Add the biases
             if biased:
-                biases = self.make_var('biases', [c_o])
+                biases = self.make_var(name+'_b', [c_o])
                 output = tf.nn.bias_add(output, biases)
             if relu:
                 # ReLU non-linearity
@@ -227,7 +238,7 @@ class Network(object):
         # Convolution for a given input and kernel
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
-            kernel = self.make_var('weights', shape=[k_h, k_w, int(c_i) / group, c_o])
+            kernel = self.make_var(name+'_W', shape=[k_h, k_w, int(c_i) / group, c_o])
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
                 output = convolve(input, kernel)
@@ -242,7 +253,7 @@ class Network(object):
                 output = tf.concat(output_groups,3)
             # Add the biases
             if biased:
-                biases = self.make_var('biases', [c_o])
+                biases = self.make_var(name+'_b', [c_o])
                 output = tf.nn.bias_add(output, biases)
             if relu:
                 # ReLU non-linearity
@@ -324,8 +335,8 @@ class Network(object):
                 feed_in = tf.reshape(input, [-1, dim])
             else:
                 feed_in, dim = (input, input_shape[-1].value)
-            weights = self.make_var('weights', shape=[dim, num_out])
-            biases = self.make_var('biases', [num_out])
+            weights = self.make_var(name+'_W', shape=[dim, num_out])
+            biases = self.make_var(name+'_b', [num_out])
             op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b
             fc = op(feed_in, weights, biases, name=scope.name)
             return fc

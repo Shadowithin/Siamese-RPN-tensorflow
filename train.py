@@ -28,7 +28,7 @@ class Train():
 
     def train(self):
         template,_,detection,gt_box,_,_=self.reader.get_batch()
-        net=SiameseRPN({'template':template,'detection':detection})
+        net=SiameseRPN({'template':template,'detection':detection}, initial_weights="vgg16_weights.npz")
 
         pre_cls=net.layers['cls']
         pre_reg=net.layers['reg']
@@ -62,7 +62,7 @@ class Train():
             print(" [*] Load SUCCESS")
         else:
             print(" [!] Load failed...")
-        epoch=19
+        epoch=0
         t=time.time()
         for step in range(self.step_num):
             #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
