@@ -16,8 +16,8 @@ class Config:
         self._configs["snapshot_name"]      = 'SiameseRPN'
 
         # Test Config
-        self._configs["img_path"]           = './data/VID/ILSVRC2015_train_00004000'
-        self._configs["label_path"]         = './data/VID/ILSVRC2015_train_00004000/groundtruth.txt'
+        self._configs["img_path"]           = './data/vot2013/bolt'
+        self._configs["label_path"]         = './data/vot2013/bolt/groundtruth.txt'
         self._configs["penalty_k"]          = 0.055
         self._configs["window_influence"]   = 0.42
         self._configs["lr"]                 = 0.12

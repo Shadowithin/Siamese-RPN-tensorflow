@@ -32,6 +32,7 @@ class Image_reader():
     def get_data(self,frame_n=0,pre_box=None):
         img=cv2.imread(os.path.join(self.img_path,self.imgs[frame_n]))
         box_ori=self.boxes[frame_n]#[x,y,w,h]===x,y is left-top corner
+        #when current frame is the first frame, return the target img, else return detection img
         if frame_n==0:
             img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,1,search=1)
         else:
