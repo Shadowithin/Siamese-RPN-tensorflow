@@ -16,14 +16,14 @@ class Config:
         self._configs["snapshot_name"]      = 'SiameseRPN'
 
         # Test Config
-        self._configs["img_path"]           = './data/vot2013/bolt'
-        self._configs["label_path"]         = './data/vot2013/bolt/groundtruth.txt'
+        self._configs["img_path"]           = './data/vot2013/woman'
+        self._configs["label_path"]         = self._configs["img_path"]+'/groundtruth.txt'
         self._configs["penalty_k"]          = 0.055
         self._configs["window_influence"]   = 0.42
         self._configs["lr"]                 = 0.12
         # Vedio Config
         self._configs["vedio_dir"]          = './data/vedio'
-        self._configs["vedio_name"]         = 'test.mp4'
+        self._configs["vedio_name"]         = self._configs["img_path"].split('/')[-1]+'_vgg_out.mp4'
         #Debug
         self._configs["debug_dir"]          = "./debug"
     @property

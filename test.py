@@ -61,6 +61,10 @@ class Test():
         for step in range(self.reader.img_num):
             img,box_ori,img_p,box_p,offset,ratio=self.reader.get_data(frame_n=step,pre_box=pre_box)
             #print(img.shape)
+            if step == 0:
+                cv2.imshow("template", img_p)
+                img_p_out = img_p*255
+                cv2.imwrite(os.path.join(self.vedio_dir, self.vedio_name.split('.')[0]+'_template.jpg'), img_p_out)
 
             img_p=np.expand_dims(img_p,axis=0)
             feed_dict={img_t:img_p,conv_c:conv_c_,conv_r:conv_r_}

@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import os
+CHANNEL_MEAN = [124, 117, 104]
 class Image_reader():
     """docstring for Image_reader"""
     def __init__(self,img_path=None,label_path=None,mode='pic'):
@@ -31,12 +32,13 @@ class Image_reader():
 
     def get_data(self,frame_n=0,pre_box=None):
         img=cv2.imread(os.path.join(self.img_path,self.imgs[frame_n]))
+        img_submean = np.subtract(img, CHANNEL_MEAN)
         box_ori=self.boxes[frame_n]#[x,y,w,h]===x,y is left-top corner
         #when current frame is the first frame, return the target img, else return detection img
         if frame_n==0:
-            img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,1,search=1)
+            img_p,box_p,offset,ratio=self.crop_resize(img_submean,box_ori,1,search=1)
         else:
-            img_p,box_p,offset,ratio=self.crop_resize(img,pre_box,2,search=2)
+            img_p,box_p,offset,ratio=self.crop_resize(img_submean,pre_box,2,search=2)
         return img,box_ori,img_p,box_p,offset,ratio
     def get_vedio_data(self,img,box_ori=None,frame_n=0,pre_box=None,note=None):
         #[x,y,w,h]===x,y is left-top corner
@@ -148,12 +150,12 @@ class Image_reader():
         assert crop_img.shape[0]==side
         assert crop_img.shape[1]==side
         if rate==1:
-            resize_img=cv2.resize(crop_img,(127,127))/255.
+            resize_img=cv2.resize(crop_img,(127,127))
             ratio=side/127
             label=np.array([63,63,w/ratio,h/ratio]).astype(np.int32)
             label=label.astype(np.float32)
         if rate==2:
-            resize_img=cv2.resize(crop_img,(255,255))/255.
+            resize_img=cv2.resize(crop_img,(255,255))
             ratio=side/255
             label=np.array([127,127,w/ratio,h/ratio]).astype(np.int32)
             label=label.astype(np.float32)

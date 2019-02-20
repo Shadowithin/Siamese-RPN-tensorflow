@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import os
 import tensorflow as tf
+CHANNEL_MEAN = [124, 117, 104]
 class Image_reader():
     """docstring for Image_reader"""
     def __init__(self,root_dir):
@@ -14,6 +15,7 @@ class Image_reader():
         self.label_list=[]
         self.node=[]
         self.input_list=[]
+        # ===========read label box and image path to dict===============
         with open(os.path.join(self.root_dir,'list.txt')) as f:
             line=f.readline().strip('\n')
             while (line):
@@ -38,6 +40,7 @@ class Image_reader():
                 #===========img_list============
 
                 #=============filter============
+                #filter out [0,0,0,0] box
                 index=[]
                 for i in range(len(self.cate_list[line])):
                     if not np.all(self.cate_box[line][i]==[0,0,0,0]):
@@ -50,6 +53,7 @@ class Image_reader():
                 line=f.readline().strip('\n')
         print(self.img_num)
         #====================transform-list==========================
+        # transform dict to list
         self.node.append(0)
         cates=list(self.cate_list.keys())
         for i,cate in enumerate(cates):
@@ -69,21 +73,25 @@ class Image_reader():
         self.template_p,self.template_label_p,self.detection_p,self.detection_label_p,self.offset,self.ratio,self.detection,self.detection_label,self.index_t,self.index_d=self.read_from_disk(self.queue)
         #===================input-producer===========================
     def read_from_disk(self,queue):
-        index_t=queue[0]#tf.random_shuffle(self.input_list)[0]
+        # randomly pick a image index
+        index_t=queue#tf.random_shuffle(self.input_list)[0]
+        # find the start and end index of the sequence that the image belong to
         index_min=tf.reshape(tf.where(tf.less_equal(self.node,index_t)),[-1])
         node_min=self.node[index_min[-1]]
         node_max=self.node[index_min[-1]+1]
-        interval_list=list(range(30,100))
-        interval=tf.random_shuffle(interval_list)[0]
-        index_d=[tf.cond(tf.greater(index_t-interval,node_min),lambda:index_t-interval,lambda:index_t+interval),tf.cond(tf.less(index_t+interval,node_max),lambda:index_t+interval,lambda:index_t-interval)]
-        index_d=tf.random_shuffle(index_d)
-        index_d=index_d[0]
+        # randomly choose the frame interval between 30 and 100
+        interval = tf.random_uniform([1], 30, 100, tf.uint8)
+        index_d_list=[tf.cond(tf.greater(index_t-interval,node_min),lambda:index_t-interval,lambda:node_min), tf.cond(tf.less(index_t+interval,node_max),lambda:index_t+interval,lambda:node_max)]
+        index_d_list=tf.random_shuffle(index_d_list)
+        index_d=index_d_list[0]
 
         constant_t=tf.read_file(self.img_list[index_t])
         template=tf.image.decode_jpeg(constant_t, channels=3)
+        template=tf.subtract(template, CHANNEL_MEAN)
         template=template[:,:,::-1]
         constant_d=tf.read_file(self.img_list[index_d])
         detection=tf.image.decode_jpeg(constant_d, channels=3)
+        detection=tf.subtract(detection, CHANNEL_MEAN)
         detection=detection[:,:,::-1]
 
         template_label=self.label_list[index_t]
@@ -96,6 +104,14 @@ class Image_reader():
 
 
     def crop_resize(self,img,label,rate=1,random_patch=True):
+        """
+
+        :param img: img need to be crop and resize
+        :param label: label box [x, y, w, h]
+        :param rate: scaling factor of side
+        :param random_patch:when crop detection img, whether or not random move from center
+        :return:
+        """
         #label=[x,y,w,h]===x,y is left-top corner
         x=label[0]
         y=label[1]
@@ -103,6 +119,7 @@ class Image_reader():
         h=label[3]
         img=tf.cast(img,tf.float32)
         mean_axis=tf.cast(tf.to_int32(tf.reduce_mean(img,axis=(0,1))),tf.float32)
+        # expand the the original area by rate
         p=tf.to_int32((w+h)/2)
         s=(w+p)*(h+p)
         side=tf.to_int32(tf.round(tf.sqrt(tf.to_float(s))*rate))
@@ -113,11 +130,13 @@ class Image_reader():
 
         offset=[x1,y1]
 
+        # pad size in 4 directions
         pad_l=tf.cond(tf.less(x1,0),lambda:tf.abs(x1),lambda:0)
         pad_r=tf.cond(tf.greater(x2,tf.shape(img)[1]),lambda:x2-tf.shape(img)[1]+1,lambda:0)
         pad_u=tf.cond(tf.less(y1,0),lambda:tf.abs(y1),lambda:0)
         pad_d=tf.cond(tf.greater(y2,tf.shape(img)[0]),lambda:y2-tf.shape(img)[0]+1,lambda:0)
 
+        # if we pad the image, we need change the labels
         x=tf.cond(tf.less(x1,0),lambda:x-x1,lambda:x)
         y=tf.cond(tf.less(y1,0),lambda:y-y1,lambda:y)
 
@@ -127,6 +146,7 @@ class Image_reader():
         img_r=tf.pad(img_r,[[pad_u,pad_d],[pad_l,pad_r]],constant_values=mean_axis[2])
         img=tf.stack([img_b,img_g,img_r],axis=2)
 
+        # change the crop coordinate after padding
         x1=tf.to_int32(x-tf.to_int32((side-w)/2))
         y1=tf.to_int32(y-tf.to_int32((side-h)/2))
         x2=tf.to_int32(x1+side)
@@ -134,8 +154,9 @@ class Image_reader():
 
         if rate==1:
             crop_img=img[y1:y2,x1:x2,:]
-            resize_img=tf.image.resize_images(crop_img,(127,127))/255.
+            resize_img=tf.image.resize_images(crop_img,(127,127))
             ratio=tf.to_float(side)/127.
+            # label is the center of the object
             label=tf.cast([63,63,tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
             label=tf.cast(label,tf.float32)
         if rate==2:
@@ -169,7 +190,7 @@ class Image_reader():
                 crop_img=img[y1:y2,x1:x2,:]
             else:
                 crop_img=img[y1:y2,x1:x2,:]
-            resize_img=tf.image.resize_images(crop_img,(255,255))/255.
+            resize_img=tf.image.resize_images(crop_img,(255,255))
             ratio=tf.to_float(side)/255.
             label=tf.cast([tf.to_float(127-tf.to_float(random_x)/ratio),tf.to_float(127-tf.to_float(random_y)/ratio),tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
             label=tf.cast(label,tf.float32)
