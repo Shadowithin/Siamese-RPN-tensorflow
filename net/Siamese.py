@@ -36,17 +36,17 @@ class SiameseRPN(Network):
             #vgg16 net block 1-4
             .conv2(3, 3, 64, 1, 1, padding="SAME", name="conv1_1")
             .conv2(3, 3, 64, 1, 1, padding="SAME", name="conv1_2")
-            .max_pool2(2, 2, 2, 2, padding='VALID', name="pool1")#63/127
+            .max_pool2(2, 2, 2, 2, padding='VALID', name="pool1")#63/255
             .conv2(3, 3, 128, 1, 1, padding="SAME", name="conv2_1")
             .conv2(3, 3, 128, 1, 1, padding="SAME", name="conv2_2")
-            .max_pool2(2, 2, 2, 2, padding='VALID', name="pool2")#31/63
-            .conv2(3, 3, 256, 1, 1, padding="VALID", name="conv3_1")#29/61
-            .conv2(3, 3, 256, 1, 1, padding="VALID", name="conv3_2")#27/59
-            .conv2(3, 3, 256, 1, 1, padding="VALID", name="conv3_3")#25/57
-            .max_pool2(2, 2, 2, 2, padding='VALID', name="pool3")#12/28
-            .conv2(3, 3, 512, 1, 1, padding="VALID", name="conv4_1")#10/26
-            .conv2(3, 3, 512, 1, 1, padding="VALID", name="conv4_2")#8/24
-            .conv2(3, 3, 512, 1, 1, padding="VALID", name="conv4_3"))#6/22
+            .max_pool2(2, 2, 2, 2, padding='VALID', name="pool2")#31/127
+            .conv2(3, 3, 256, 1, 1, padding="VALID", name="conv3_1")#29/125
+            .conv2(3, 3, 256, 1, 1, padding="VALID", name="conv3_2")#27/123
+            .conv2(3, 3, 256, 1, 1, padding="VALID", name="conv3_3")#25/121
+            .max_pool2(2, 2, 2, 2, padding='VALID', name="pool3")#12/60
+            .conv2(3, 3, 512, 1, 1, padding="VALID", name="conv4_1")#10/58
+            .conv2(3, 3, 512, 1, 1, padding="VALID", name="conv4_2")#8/56
+            .conv2(3, 3, 512, 1, 1, padding="VALID", name="conv4_3"))#6/54
 
         (self.feed('conv4_3')
              #template

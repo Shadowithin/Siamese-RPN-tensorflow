@@ -23,17 +23,17 @@ class Train():
         self.decay_step=int(self.save_per_epoch/4)
         self.model_dir=cfg.model_dir
         self.pre_trained_dir=cfg.pre_trained_dir
-        self.anchor_op=Anchor(17,17)
+        self.anchor_op=Anchor(49, 49)
         self.is_debug=False
 
     def train(self):
-        template,_,detection,gt_box,_,_=self.reader.get_batch()
-        net=SiameseRPN({'template':template,'detection':detection}, initial_weights="vgg16_weights.npz")
+        template,_,detection,gt_box,_,_=self.reader.get_batch(batch_size=8)
+        net=SiameseRPN({'template':template,'detection':detection})
 
         pre_cls=net.layers['cls']
         pre_reg=net.layers['reg']
 
-        cls_loss,reg_loss,label,target_box=self.loss_op.loss(gt_box[0],pre_cls,pre_reg)
+        cls_loss,reg_loss,label,target_box=self.loss_op.loss(gt_box,pre_cls,pre_reg)
         loss=cls_loss+reg_loss
 
         #+++++++++++++++++++++debug++++++++++++++++++++++++++++++

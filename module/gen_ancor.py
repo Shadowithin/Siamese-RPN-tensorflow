@@ -3,22 +3,26 @@ import cv2
 class Anchor():
     """docstring for Anchor"""
     def __init__(self,feature_w,feature_h):
-        self.width=255
-        self.height=255
+        self.width=511
+        self.height=511
         self.w=feature_w
         self.h=feature_h
-        self.base=64
-        self.stride=16
-        self.scale=[1/3,1/2,1,2,3]
+        self.base=[64, 128]#base side length
+        self.stride=12
+        self.scale=[1/3,1/2,1,2,3]# aspect ratio
         self.anchors=self.gen_anchors()
     def gen_single_anchor(self):
+        """Generate the anchor in the top-left corner"""
         scale=np.array(self.scale)
-        s=self.base*self.base
-        w=np.sqrt(s/scale)
-        h=w*scale
+        base = np.array(self.base)
+        s=base*base
+        w=np.sqrt(s[:, np.newaxis]/scale[np.newaxis, :])
+        h=w*scale[np.newaxis, :]
+        w = w.reshape([-1])
+        h = h.reshape([-1])
         c_x=(self.stride-1)/2
         c_y=(self.stride-1)/2
-        anchor=np.vstack([c_x*np.ones_like(scale),c_y*np.ones_like(scale),w,h])
+        anchor=np.vstack([c_x*np.ones_like(w),c_y*np.ones_like(w),w,h])
         anchor=anchor.transpose()#[x,y,w,h]
         anchor=self.center_to_corner(anchor)#[x1,y1,x2,y2]
         anchor=anchor.astype(np.int32)

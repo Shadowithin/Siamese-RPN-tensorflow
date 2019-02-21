@@ -1,8 +1,8 @@
 import tensorflow as tf
 class Anchor_tf():
     def __init__(self):
-        self.width=255
-        self.height=255
+        self.width=511
+        self.height=511
     def center_to_corner(self,box):
         t_1=box[:,0]-(box[:,2]-1)/2
         t_2=box[:,1]-(box[:,3]-1)/2
@@ -20,11 +20,12 @@ class Anchor_tf():
     def diff_anchor_gt(self,gt,anchors):
         #gt [x,y,w,h]
         #anchors [x,y,w,h]
-        t_1=(gt[0]-anchors[:,0])/(anchors[:,2]+0.01)
-        t_2=(gt[1]-anchors[:,1])/(anchors[:,3]+0.01)
-        t_3=tf.log(gt[2]/(anchors[:,2]+0.01))
-        t_4=tf.log(gt[3]/(anchors[:,3]+0.01))
-        diff_anchors=tf.transpose(tf.stack([t_1,t_2,t_3,t_4],axis=0),(1,0))
+        #for i in range(0,8):
+        t_1=(tf.expand_dims(gt[:,0],1)-tf.expand_dims(anchors[:,0],0))/(tf.expand_dims(anchors[:,2],0)+0.01)
+        t_2=(tf.expand_dims(gt[:,1],1)-tf.expand_dims(anchors[:,1],0))/(tf.expand_dims(anchors[:,3],0)+0.01)
+        t_3=tf.log(tf.expand_dims(gt[:,2],1)/(tf.expand_dims(anchors[:,2],0)+0.01))
+        t_4=tf.log(tf.expand_dims(gt[:,3],1)/(tf.expand_dims(anchors[:,3],0)+0.01))
+        diff_anchors=tf.transpose(tf.stack([t_1,t_2,t_3,t_4],axis=0),(1,2,0))
         return diff_anchors#[dx,dy,dw,dh]
     def iou(self,box1,box2):
         """ Intersection over Union (iou)
@@ -48,42 +49,74 @@ class Anchor_tf():
         zeros=tf.zeros_like(tb)
         tb=tf.where(tf.less(tb,0),zeros,tb)
         lr=tf.where(tf.less(lr,0),zeros,lr)
-        over_square=tb*lr
-        all_square=(box1[:,:,2]-box1[:,:,0])*(box1[:,:,3]-box1[:,:,1])+(box2[:,:,2]-box2[:,:,0])*(box2[:,:,3]-box2[:,:,1])-over_square
-        return over_square/all_square
+        insertion=tb*lr
+        union=(box1[:,:,2]-box1[:,:,0])*(box1[:,:,3]-box1[:,:,1])+(box2[:,:,2]-box2[:,:,0])*(box2[:,:,3]-box2[:,:,1])-insertion
+        return insertion/union
     def pos_neg_anchor2(self,gt,anchors):
+        """
+
+        :param gt: ground true box, shape of (batch_size, 4)
+        :param anchors: anchors, shape of (feature_w*feature*h*k, 4)
+        :return:
+        label: label of anchors,shape of (batch_size, feature_w*feature*h*k), value of 1, 0, -1
+        target_box: location regression target, shape of (batch_size, feature_w*feature*h*k, 4)
+        target_inside_weight_box: positive anchor mask, shape of (batch_size, feature_w*feature*h*k, 4)
+        """
         #gt [x,y,w,h]
         #anchors [x1,y1,x2,y2]
+        # sess = tf.InteractiveSession()
+        # coord = tf.train.Coordinator()
+        # threads = tf.train.start_queue_runners(coord=coord, sess=sess)
+        # sess.run(tf.global_variables_initializer())
+        # gt_eval = gt.eval()
+
+        batch_size = gt.shape[0]
         zeros=tf.zeros_like(anchors)
         ones=tf.ones_like(anchors)
-        all_box=tf.where(tf.less(anchors,0),zeros,anchors)
-        all_box=tf.where(tf.greater(all_box,self.width-1),ones*(self.width-1),all_box)
-        target_box=tf.zeros((anchors.get_shape()[0],4),dtype=tf.float32)
-        target_inside_weight_box=tf.zeros((anchors.get_shape()[0],4),dtype=tf.float32)
-        target_outside_weight_box=tf.ones((anchors.get_shape()[0],4),dtype=tf.float32)
-        label=-tf.ones((anchors.get_shape()[0],),dtype=tf.float32)
+        # make sure 0<c_x,c_y<width, maybe there is no need to do that
+        # all_box=tf.where(tf.less(anchors,0),zeros,anchors)
+        # all_box=tf.where(tf.greater(all_box,self.width-1),ones*(self.width-1),all_box)
+        all_box = anchors
+        target_box=tf.zeros((batch_size,anchors.get_shape()[0],4),dtype=tf.float32)
+        target_inside_weight_box=tf.zeros((batch_size,anchors.get_shape()[0],4),dtype=tf.float32)
+        target_outside_weight_box=tf.ones((batch_size,anchors.get_shape()[0],4),dtype=tf.float32)
+        label=-tf.ones((batch_size,anchors.get_shape()[0],),dtype=tf.float32)
 
 
-        gt_array=tf.reshape(gt,(1,4))
+        gt_array=tf.reshape(gt,(batch_size,4))
         gt_array=self.center_to_corner(gt_array)
 
-        iou_value=tf.reshape(self.iou(all_box,gt_array),[-1])
+        iou_value=tf.transpose(self.iou(all_box,gt_array),(1,0))
 
-        pos_value,pos_index=tf.nn.top_k(iou_value,16)
+        #pos_value,pos_index=tf.nn.top_k(iou_value,16)
         pos_mask_label=tf.ones_like(label)
-        label=tf.where(tf.greater_equal(iou_value,pos_value[-1]),pos_mask_label,label)
+        pos_index = tf.where(tf.greater_equal(iou_value,0.5))
+        label=tf.where(tf.greater_equal(iou_value,0.5),pos_mask_label,label)
 
-        neg_index=tf.reshape(tf.where(tf.less(iou_value,0.3)),[-1])
+        #neg_index=tf.reshape(tf.where(tf.less(iou_value,0.3)),[-1])
+        # we assign 12 hard negative example pre batch, which means 0.1<iou<0.3
+        hard_neg_index=tf.where(tf.cast(tf.less(iou_value,0.3),tf.int8)*tf.cast(tf.greater(iou_value,0.1),tf.int8))
+        hard_neg_index=tf.random_shuffle(hard_neg_index)
+        try:
+            hard_neg_index=hard_neg_index[0:12*batch_size]
+        except:
+            pass
+        neg_index = tf.where(tf.less(iou_value, 0.1))
         neg_index=tf.random_shuffle(neg_index)
-        neg_index=neg_index[0:48]
-        neg_index=tf.reduce_sum(tf.one_hot(neg_index,anchors.get_shape()[0]),axis=0)
+        neg_index=neg_index[0:48*batch_size]
+        neg_index=tf.concat([hard_neg_index,neg_index],axis=0)
+
+        neg_mask = tf.scatter_nd(neg_index, tf.ones(shape=[tf.shape(neg_index)[0],]), label.shape)
+        # neg_index_check = tf.where(tf.equal(neg_mask,1))
+        # indices, indices_check = sess.run([neg_index, neg_index_check])
+
         neg_mask_label=tf.zeros_like(label)
-        label=tf.where(tf.equal(neg_index,1),neg_mask_label,label)
+        label=tf.where(tf.equal(neg_mask,1),neg_mask_label,label)
 
         target_box=self.diff_anchor_gt(gt,self.corner_to_center(all_box))
-        temp_label=tf.transpose(tf.stack([label,label,label,label],axis=0),(1,0))
+        temp_label=tf.transpose(tf.stack([label,label,label,label],axis=0),(1,2,0))
         target_inside_weight_box=tf.where(tf.equal(temp_label,1),temp_label,target_inside_weight_box)
-        target_outside_weight_box=target_outside_weight_box*1.0/48.
+        target_outside_weight_box=target_outside_weight_box*1.0/tf.cast(tf.shape(pos_index)[0]+tf.shape(neg_index)[0], tf.float32)
         #print(target_outside_weight_box[np.where(target_outside_weight_box>0)])
         return label,target_box,target_inside_weight_box,target_outside_weight_box,all_box
 

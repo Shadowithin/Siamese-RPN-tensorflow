@@ -32,7 +32,7 @@ def layer(op):
 class Network(object):
 
     def __init__(self, inputs, initial_weights=None, trainable=True):
-        self.k=5
+        self.k=10
         # The input nodes for this network
         self.inputs = inputs
         # The current list of terminal nodes
@@ -377,16 +377,23 @@ class Network(object):
     def cf_conv(self, input ,name,padding=DEFAULT_PADDING):
         template=input[0]
         detection=input[1]
-        merge=tf.nn.conv2d(detection,template,strides=[1,1,1,1],padding=padding,name=name)
-        return merge
+        assert template.shape[0]==detection.shape[0]
+        batch_output = []
+        batchsize = detection.shape[0]
+        for i in range(batchsize):
+            kernel = template[i]
+            input_map = tf.expand_dims(detection[i], axis=0)
+            merge=tf.nn.conv2d(input_map,kernel,strides=[1,1,1,1],padding=padding,name=name)
+            batch_output.append(merge)
+        return tf.concat(batch_output, axis=0)
     @layer
     def reshape(self,input, rate,name):
-        shape=tf.shape(input)
+        shape=input.shape
         if rate==2:
             #output=tf.reshape(input,(shape[1],shape[2],int(shape[3]/(rate*self.k)),int(rate*self.k)),name=name)
-            output=tf.reshape(input,(shape[1],shape[2],256,10),name=name)
+            output=tf.reshape(input,(shape[0],shape[1],shape[2],256,20),name=name)
         elif rate==4:
-            output=tf.reshape(input,(shape[1],shape[2],256,20),name=name)
+            output=tf.reshape(input,(shape[0],shape[1],shape[2],256,40),name=name)
         else:
             raise KeyError('shape is error')
         return output

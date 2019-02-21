@@ -63,8 +63,7 @@ class Test():
             #print(img.shape)
             if step == 0:
                 cv2.imshow("template", img_p)
-                img_p_out = img_p*255
-                cv2.imwrite(os.path.join(self.vedio_dir, self.vedio_name.split('.')[0]+'_template.jpg'), img_p_out)
+                cv2.imwrite(os.path.join(self.vedio_dir, self.vedio_name.split('.')[0]+'_template.jpg'), img_p)
 
             img_p=np.expand_dims(img_p,axis=0)
             feed_dict={img_t:img_p,conv_c:conv_c_,conv_r:conv_r_}
@@ -112,7 +111,7 @@ class Test():
         print('vedio is saved in '+self.vedio_dir)
 
     def nms(self,img,scores,delta,gt_p):
-        img=(img*255).astype(np.uint8)
+        #img=(img*255).astype(np.uint8)
         target_sz=gt_p[2:]
         score=scores[:,1]
 
@@ -121,29 +120,9 @@ class Test():
         bboxes[:,1]=delta[:,1]*self.anchors[:,3]+self.anchors[:,1]
         bboxes[:,2]=np.exp(delta[:,2])*self.anchors[:,2]
         bboxes[:,3]=np.exp(delta[:,3])*self.anchors[:,3]#[x,y,w,h]
-        def change(r):
-            return np.maximum(r, 1./r)
-        def sz(w, h):
-            pad = (w + h) * 0.5
-            sz2 = (w + pad) * (h + pad)
-            return np.sqrt(sz2)
-        def sz_wh(wh):
-            pad = (wh[0] + wh[1]) * 0.5
-            sz2 = (wh[0] + pad) * (wh[1] + pad)
-            return np.sqrt(sz2)
 
-        # size penalty
-        s_c = change(sz(bboxes[:,2], bboxes[:,3]) / (sz_wh(target_sz)))  # scale penalty
-        r_c = change((target_sz[0] / target_sz[1]) / (bboxes[:,2] / bboxes[:,3]))  # ratio penalty
+        best_pscore_id = np.argmax(score)
 
-        penalty = np.exp(-(r_c * s_c - 1.) * self.penalty_k)
-        pscore = penalty * score
-
-        # window float
-        pscore = pscore * (1 - self.window_influence) + self.window * self.window_influence
-        best_pscore_id = np.argmax(pscore)
-
-        self.lr = penalty[best_pscore_id] * score[best_pscore_id] * self.lr
         bbox=bboxes[best_pscore_id].reshape((1,4))#[x,y,w,h]
 
         #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
