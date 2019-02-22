@@ -23,7 +23,7 @@ class Train():
         self.decay_step=int(self.save_per_epoch/4)
         self.model_dir=cfg.model_dir
         self.pre_trained_dir=cfg.pre_trained_dir
-        self.anchor_op=Anchor(17,17)
+        self.anchor_op=Anchor(49,49)
         self.is_debug=True
 
     def train(self):

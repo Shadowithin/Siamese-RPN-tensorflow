@@ -3,12 +3,12 @@ import cv2
 class Anchor():
     """docstring for Anchor"""
     def __init__(self,feature_w,feature_h):
-        self.width=255
-        self.height=255
+        self.width=511
+        self.height=511
         self.w=feature_w
         self.h=feature_h
         self.base=64
-        self.stride=16
+        self.stride=10
         self.scale=[1/3,1/2,1,2,3]
         self.anchors=self.gen_anchors()
     def gen_single_anchor(self):

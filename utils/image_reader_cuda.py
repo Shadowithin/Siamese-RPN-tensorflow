@@ -15,15 +15,19 @@ class Image_reader():
         self.label_list=[]
         self.node=[]
         self.input_list=[]
+        self.rate=4
         # ===========read label box and image path to dict===============
         with open(os.path.join(self.root_dir,'list.txt')) as f:
             line=f.readline().strip('\n')
             while (line):
                 #===========label===============
                 with open(os.path.join(self.root_dir,line,'groundtruth.txt')) as f2:
+                    print(os.path.join(self.root_dir,line,'groundtruth.txt'))
                     line2=f2.readline().strip('\n')
                     boxes=[]
                     while (line2):
+                        if '\t' in line2:
+                            line2=line2.replace('\t',',')
                         box=line2.split(',')
                         boxes.append([int(float(box[0])),int(float(box[1])),int(float(box[2])),int(float(box[3]))])
                         line2=f2.readline().strip('\n')
@@ -104,7 +108,7 @@ class Image_reader():
 
         with tf.name_scope("crop_resize"):
             template_p,template_label_p,_,_=self.crop_resize(template,template_label,1)
-            detection_p,detection_label_p,offset,ratio=self.crop_resize(detection,detection_label,2)
+            detection_p,detection_label_p,offset,ratio=self.crop_resize(detection,detection_label,self.rate)
 
         return template_p,template_label_p,detection_p,detection_label_p,offset,ratio,detection,detection_label,index_t,index_d
 
@@ -128,7 +132,8 @@ class Image_reader():
         # expand the the original area by rate
         p=tf.to_int32((w+h)/2)
         s=(w+p)*(h+p)
-        side=tf.to_int32(tf.round(tf.sqrt(tf.to_float(s))*rate))
+        #side=tf.to_int32(tf.round(tf.sqrt(tf.to_float(s))*rate))
+        side = tf.to_int32(tf.maximum(w,h))*rate
         x1=tf.to_int32(x-tf.to_int32((side-w)/2))
         y1=tf.to_int32(y-tf.to_int32((side-h)/2))
         x2=tf.to_int32(x1+side)
@@ -165,7 +170,7 @@ class Image_reader():
             # label is the center of the object
             label=tf.cast([63,63,tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
             label=tf.cast(label,tf.float32)
-        if rate==2:
+        if rate==4:
             random_x=0
             random_y=0
             if random_patch:
@@ -196,9 +201,9 @@ class Image_reader():
                 crop_img=img[y1:y2,x1:x2,:]
             else:
                 crop_img=img[y1:y2,x1:x2,:]
-            resize_img=tf.image.resize_images(crop_img,(255,255))/255.
-            ratio=tf.to_float(side)/255.
-            label=tf.cast([tf.to_float(127-tf.to_float(random_x)/ratio),tf.to_float(127-tf.to_float(random_y)/ratio),tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
+            resize_img=tf.image.resize_images(crop_img,(511,511))/255.
+            ratio=tf.to_float(side)/511.
+            label=tf.cast([tf.to_float(255-tf.to_float(random_x)/ratio),tf.to_float(255-tf.to_float(random_y)/ratio),tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
             label=tf.cast(label,tf.float32)
 
         return resize_img,label,offset,ratio
@@ -206,7 +211,7 @@ class Image_reader():
 
         template_p,template_label_p,detection_p,detection_label_p,offset,ratio=tf.train.batch\
         ([self.template_p,self.template_label_p,self.detection_p,self.detection_label_p,self.offset,self.ratio],\
-            batch_size,num_threads=32,capacity=2048,shapes=[(127,127,3),(4),(255,255,3),(4),(2),()])
+            batch_size,num_threads=8,capacity=64,shapes=[(127,127,3),(4),(511,511,3),(4),(2),()])
         return template_p,template_label_p,detection_p,detection_label_p,offset,ratio
 
 

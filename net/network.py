@@ -115,17 +115,74 @@ class Network(object):
 
     @layer
     def conv2(self,
-             input,
-             k_h,
-             k_w,
-             c_o,
-             s_h,
-             s_w,
-             name,
-             relu=True,
-             padding=DEFAULT_PADDING,
-             group=1,
-             biased=True):
+                 input,
+                 k_h,
+                 k_w,
+                 c_o,
+                 s_h,
+                 s_w,
+                 name,
+                 relu=True,
+                 padding=DEFAULT_PADDING,
+                 group=1,
+                 biased=True):
+            # Verify that the padding is acceptable
+            self.validate_padding(padding)
+            # Get the number of channels in the input
+            c_i = input[0].get_shape()[-1]
+            # Verify that the grouping parameter is valid
+            assert c_i % group == 0
+            assert c_o % group == 0
+            # Convolution for a given input and kernel
+            convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
+            with tf.variable_scope(name) as scope:
+                kernel = self.make_var(name+'_W', shape=[k_h, k_w, int(c_i) / group, c_o])
+                if group == 1:
+                    # This is the common-case. Convolve the input without any further complications.
+                    template = convolve(input[0], kernel)
+                    detection = convolve(input[1], kernel)
+                    output = [template,detection]
+                else:
+                    # Split the input into groups and then convolve each of them independently
+                    # input_groups = tf.split(3, group, input)
+                    # kernel_groups = tf.split(3, group, kernel)
+                    template_groups = tf.split(input[0],group,3)
+                    detection_groups = tf.split(input[1],group,3)
+
+                    kernel_groups = tf.split(kernel,group,3)
+
+                    template_groups = [convolve(i, k) for i, k in zip(template_groups, kernel_groups)]
+                    detection_groups = [convolve(i, k) for i, k in zip(detection_groups, kernel_groups)]
+                    # Concatenate the groups
+                    template = tf.concat(template_groups,3)
+                    detection = tf.concat(detection_groups,3)
+                    output=[template,detection]
+                # Add the biases
+                if biased:
+                    biases = self.make_var(name+'_b', [c_o])
+                    template = tf.nn.bias_add(output[0], biases)
+                    detection = tf.nn.bias_add(output[1], biases)
+                    output=[template,detection]
+                if relu:
+                    # ReLU non-linearity
+                    template = tf.nn.relu(output[0])
+                    detection = tf.nn.relu(output[1])
+                    output=[template,detection]
+                return output
+
+    @layer
+    def conv_3(self,
+              input,
+              k_h,
+              k_w,
+              c_o,
+              s_h,
+              s_w,
+              name,
+              relu=True,
+              padding=DEFAULT_PADDING,
+              group=1,
+              biased=True):
         # Verify that the padding is acceptable
         self.validate_padding(padding)
         # Get the number of channels in the input
@@ -136,39 +193,26 @@ class Network(object):
         # Convolution for a given input and kernel
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
-            kernel = self.make_var(name+'_W', shape=[k_h, k_w, int(c_i) / group, c_o])
+            kernel_t = self.make_var(name + '_t', shape=[k_h, k_w, int(c_i) / group, c_o])
+            kernel_d = self.make_var(name + '_d', shape=[k_h, k_w, int(c_i) / group, c_o])
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
-                template = convolve(input[0], kernel)
-                detection = convolve(input[1], kernel)
-                output = [template,detection]
-            else:
-                # Split the input into groups and then convolve each of them independently
-                # input_groups = tf.split(3, group, input)
-                # kernel_groups = tf.split(3, group, kernel)
-                template_groups = tf.split(input[0],group,3)
-                detection_groups = tf.split(input[1],group,3)
+                template = convolve(input[0], kernel_t)
+                detection = convolve(input[1], kernel_d)
+                output = [template, detection]
 
-                kernel_groups = tf.split(kernel,group,3)
-
-                template_groups = [convolve(i, k) for i, k in zip(template_groups, kernel_groups)]
-                detection_groups = [convolve(i, k) for i, k in zip(detection_groups, kernel_groups)]
-                # Concatenate the groups
-                template = tf.concat(template_groups,3)
-                detection = tf.concat(detection_groups,3)
-                output=[template,detection]
             # Add the biases
             if biased:
-                biases = self.make_var(name+'_b', [c_o])
+                biases = self.make_var(name + '_b', [c_o])
                 template = tf.nn.bias_add(output[0], biases)
                 detection = tf.nn.bias_add(output[1], biases)
-                output=[template,detection]
+                output = [template, detection]
             if relu:
                 # ReLU non-linearity
                 template = tf.nn.relu(output[0])
                 detection = tf.nn.relu(output[1])
-                output=[template,detection]
-            return output
+                output = [template, detection]
+        return output
     @layer
     def conv1(self,
              input,
