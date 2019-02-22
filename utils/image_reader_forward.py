@@ -32,20 +32,21 @@ class Image_reader():
 
     def get_data(self,frame_n=0,pre_box=None):
         img=cv2.imread(os.path.join(self.img_path,self.imgs[frame_n]))
-        img_submean = np.subtract(img, CHANNEL_MEAN)
+        img=cv2.cvtColor(img,cv2.COLOR_RGB2BGR)# actually bgr 2 rgb
+        #img_submean = np.subtract(img, CHANNEL_MEAN)
         box_ori=self.boxes[frame_n]#[x,y,w,h]===x,y is left-top corner
         #when current frame is the first frame, return the target img, else return detection img
         if frame_n==0:
-            img_p,box_p,offset,ratio=self.crop_resize(img_submean,box_ori,1,search=1)
+            img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,1)
         else:
-            img_p,box_p,offset,ratio=self.crop_resize(img_submean,pre_box,2,search=2)
+            img_p,box_p,offset,ratio=self.crop_resize(img,pre_box,2)
         return img,box_ori,img_p,box_p,offset,ratio
     def get_vedio_data(self,img,box_ori=None,frame_n=0,pre_box=None,note=None):
         #[x,y,w,h]===x,y is left-top corner
         if frame_n==0:
-            img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,1,search=1,note=note)
+            img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,1,note=note)
         else:
-            img_p,box_p,offset,ratio=self.crop_resize(img,pre_box,2,search=2,note=note)
+            img_p,box_p,offset,ratio=self.crop_resize(img,pre_box,2,note=note)
         return img,box_ori,img_p,box_p,offset,ratio
     def recover(self,box,offset,ratio):
         #label=[c_x,c_y,w,h]
@@ -61,7 +62,7 @@ class Image_reader():
 
         return box
 
-    def crop_resize(self,img,label,rate=1,search=1,note=None):
+    def crop_resize(self,img,label,rate=1,note=None):
         #label=[x,y,w,h]===x,y is left-top corner
         #print(label)
         x,y,w,h=label
@@ -105,16 +106,9 @@ class Image_reader():
                 w=new_w
                 h=new_h
         #===========================rectify==========================
-        p=(w+h)/2
-        s=(w+p)*(h+p)
-        if search==1:
-            side=round(np.sqrt(s)*rate)
-        if search==2:
-            scale_z=127/np.sqrt(s)
-            d_search = (255 - 127) / 2
-            pad = d_search / scale_z
-            side = round(np.sqrt(s) + 2 * pad)
-
+        # p=(w+h)/2
+        # s=(w+p)*(h+p)
+        side=round(max(w,h)*rate)
 
         x1=int(x-int((side-w)/2))
         y1=int(y-int((side-h)/2))
@@ -150,14 +144,29 @@ class Image_reader():
         assert crop_img.shape[0]==side
         assert crop_img.shape[1]==side
         if rate==1:
-            resize_img=cv2.resize(crop_img,(127,127))
+            resize_img=cv2.resize(crop_img,(127,127))/255.
             ratio=side/127
             label=np.array([63,63,w/ratio,h/ratio]).astype(np.int32)
             label=label.astype(np.float32)
-        if rate==2:
-            resize_img=cv2.resize(crop_img,(255,255))
+        if rate==4:
+            shift_max_x = max(x-x1, img.shape[1]-x2)
+            shift_min_x = -max(x1, x2-x-w)
+            shift_max_y = max(y-y1, img.shape[0]-y2)
+            shift_min_y = -max(y1, y2-y-h)
+
+            random_x = np.random.uniform(shift_min_x, shift_max_x, size=[])
+            random_y = np.random.uniform(shift_min_y, shift_max_y, size=[])
+
+            x1 = x1 + random_x
+            x2 = x2 + random_x
+            y1 = y1 + random_y
+            y2 = y2 + random_y
+
+            offset = [x1, y1]
+
+            resize_img=cv2.resize(crop_img,(511,511))/255.
             ratio=side/255
-            label=np.array([127,127,w/ratio,h/ratio]).astype(np.int32)
+            label=np.array([255-random_x/ratio,255-random_y/ratio,w/ratio,h/ratio]).astype(np.int32)
             label=label.astype(np.float32)
 
         return resize_img,label,offset,ratio
