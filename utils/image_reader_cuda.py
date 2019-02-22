@@ -88,11 +88,11 @@ class Image_reader():
 
         constant_t=tf.read_file(self.img_list[index_t])
         template=tf.image.decode_jpeg(constant_t, channels=3)
-        template=tf.subtract(template, CHANNEL_MEAN)
+        #template=tf.subtract(template, CHANNEL_MEAN)
         template=template[:,:,::-1]
         constant_d=tf.read_file(self.img_list[index_d])
         detection=tf.image.decode_jpeg(constant_d, channels=3)
-        detection=tf.subtract(detection, CHANNEL_MEAN)
+        #detection=tf.subtract(detection, CHANNEL_MEAN)
         detection=detection[:,:,::-1]
 
         template_label=self.label_list[index_t]
@@ -156,7 +156,7 @@ class Image_reader():
 
         if rate==1:
             crop_img=img[y1:y2,x1:x2,:]
-            resize_img=tf.image.resize_images(crop_img,(127,127))
+            resize_img=tf.image.resize_images(crop_img,(127,127))/255.
             ratio=tf.to_float(side)/127.
             # label is the center of the object
             label=tf.cast([63,63,tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
@@ -192,7 +192,7 @@ class Image_reader():
                 crop_img=img[y1:y2,x1:x2,:]
             else:
                 crop_img=img[y1:y2,x1:x2,:]
-            resize_img=tf.image.resize_images(crop_img,(511,511))
+            resize_img=tf.image.resize_images(crop_img,(511,511))/255.
             ratio=tf.to_float(side)/511.
             label=tf.cast([tf.to_float(255-tf.to_float(random_x)/ratio),tf.to_float(255-tf.to_float(random_y)/ratio),tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
             label=tf.cast(label,tf.float32)
@@ -202,7 +202,7 @@ class Image_reader():
 
         template_p,template_label_p,detection_p,detection_label_p,offset,ratio=tf.train.batch\
         ([self.template_p,self.template_label_p,self.detection_p,self.detection_label_p,self.offset,self.ratio],\
-            batch_size,num_threads=1,capacity=16,shapes=[(127,127,3),(4),(511,511,3),(4),(2),()])
+            batch_size,num_threads=8,capacity=64,shapes=[(127,127,3),(4),(511,511,3),(4),(2),()])
         return template_p,template_label_p,detection_p,detection_label_p,offset,ratio
 
 

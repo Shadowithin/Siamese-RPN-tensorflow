@@ -2,9 +2,12 @@ import numpy as np
 from config import cfg
 import cv2
 from numba import jit
-@jit
-def debug(img,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_op):
-    img=(img*255).astype(np.uint8)
+CHANNEL_MEAN = [124, 117, 104]
+def debug(img,template,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_op):
+    img=(img*255.).astype(np.uint8)
+    template=(template*255.).astype(np.uint8)
+    #mean_array = np.array(CHANNEL_MEAN)
+    #img = img + mean_array[np.newaxis, np.newaxis, :]
     #print('=============================================================')
     # pre_cls=pre_cls.reshape((-1,2))
     # pre_reg=pre_reg.reshape((-1,4))
@@ -16,9 +19,9 @@ def debug(img,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_
     # print(pre_score[np.where(label==1)])
     # print('===========box===========')
     # print('===========cls===========')
-    w = np.outer(np.hanning(17), np.hanning(17))
-    w=np.stack([w,w,w,w,w],-1)
-    w=w.reshape((-1))
+    # w = np.outer(np.hanning(17), np.hanning(17))
+    # w=np.stack([w,w,w,w,w],-1)
+    # w=w.reshape((-1))
     #w=np.tile(w.flatten(), 5)
 
     # index_cls=np.argmax(pre_cls[:,1])
@@ -125,6 +128,7 @@ def debug(img,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_
     gt[3]=gt[1]+gt[3]
     cv2.rectangle(img,(int(gt[0]),int(gt[1])),(int(gt[2]),int(gt[3])),(0,0,255),2)
     cv2.imwrite(cfg.debug_dir+'/'+str(step)+'.jpg',img)
+    cv2.imwrite(cfg.debug_dir + '/' + str(step) + '_template.jpg', template)
     #============gt_box===========
     # print('===========reg===========')
     # print(b.astype(np.int32))

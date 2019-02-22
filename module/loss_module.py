@@ -31,7 +31,7 @@ class Loss_op():
         option2=tf.subtract(tf.abs(inside),0.5)
 
         smooth_l1=tf.multiply(tf.add(tf.multiply(option1,mask),tf.multiply(option2,tf.subtract(1.,mask))),target_outside_weight)
-        reg_loss=tf.reduce_sum(smooth_l1)
+        reg_loss=tf.reduce_sum(smooth_l1)*10
         return cls_loss,reg_loss,label,target_box
 
 

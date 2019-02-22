@@ -182,8 +182,8 @@ class Anchor():
         return label,target_box,target_inside_weight_box,target_outside_weight_box,all_box
     def regu(self):
         all_box=self.anchors.copy()
-        all_box[np.where(all_box<0)]=0
-        all_box[np.where(all_box>self.width-1)]=self.width-1
+        # all_box[np.where(all_box<0)]=0
+        # all_box[np.where(all_box>self.width-1)]=self.width-1
         return all_box
 
 

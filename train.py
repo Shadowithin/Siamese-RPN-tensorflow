@@ -13,9 +13,10 @@ import time
 class Train():
     def __init__(self):
         os.environ['CUDA_VISIBLE_DEVICES']='0'
+        self.batch_size = 1
         self.reader=Image_reader(cfg.root_dir)
-        self.step_num=self.reader.img_num*cfg.epoch_num
-        self.save_per_epoch=self.reader.img_num
+        self.step_num=int(self.reader.img_num*cfg.epoch_num/self.batch_size)
+        self.save_per_epoch=int(self.reader.img_num/self.batch_size)
         print(self.reader.img_num)
         self.loss_op=Loss_op()
         self.learning_rate=cfg.learning_rate
@@ -24,10 +25,10 @@ class Train():
         self.model_dir=cfg.model_dir
         self.pre_trained_dir=cfg.pre_trained_dir
         self.anchor_op=Anchor(49, 49)
-        self.is_debug=False
+        self.is_debug=True
 
     def train(self):
-        template,_,detection,gt_box,_,_=self.reader.get_batch(batch_size=8)
+        template,_,detection,gt_box,_,_=self.reader.get_batch(batch_size=self.batch_size)
         net=SiameseRPN({'template':template,'detection':detection})
 
         pre_cls=net.layers['cls']
@@ -36,11 +37,16 @@ class Train():
         cls_loss,reg_loss,label,target_box=self.loss_op.loss(gt_box,pre_cls,pre_reg)
         loss=cls_loss+reg_loss
 
+        tf.summary.scalar('cls_loss', cls_loss)
+        tf.summary.scalar('reg_loss', reg_loss)
+        tf.summary.scalar('total_loss', loss)
+        merged = tf.summary.merge_all()
+
         #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
         debug_pre_cls=tf.nn.softmax(pre_cls)
         debug_pre_reg=pre_reg
-        debug_pre_score=tf.nn.softmax(tf.reshape(pre_cls,(-1,2)))
-        debug_pre_box=tf.reshape(pre_reg,(-1,4))
+        debug_pre_score=tf.nn.softmax(tf.reshape(pre_cls[0],(-1,2)))
+        debug_pre_box=tf.reshape(pre_reg[0],(-1,4))
         #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
 
         saver=tf.train.Saver(max_to_keep=50)
@@ -54,6 +60,7 @@ class Train():
         config.gpu_options.allow_growth=True
         sess=tf.InteractiveSession(config=config)
         threads=tf.train.start_queue_runners(coord=coord,sess=sess)
+        summary_writer = tf.summary.FileWriter("logs", sess.graph)
         sess.run(tf.global_variables_initializer())
 
 
@@ -67,10 +74,11 @@ class Train():
         for step in range(self.step_num):
             #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
             if self.is_debug:
-                _,loss_,cls_loss_,reg_loss_,lr_,debug_pre_cls_,debug_pre_reg_,debug_pre_score_,debug_pre_box_,label_,target_box_,detection_p,detection_label_p=\
-                sess.run([train_op,loss,cls_loss,reg_loss,lr,debug_pre_cls,debug_pre_reg,debug_pre_score,debug_pre_box,label,target_box,detection,gt_box])
-                if step %1000==0:
-                    debug(detection_p[0],detection_label_p[0],debug_pre_cls_,debug_pre_reg_,debug_pre_score_,debug_pre_box_,label_,target_box_,step+7582000,self.anchor_op)
+                summary,_,loss_,cls_loss_,reg_loss_,lr_,debug_pre_cls_,debug_pre_reg_,debug_pre_score_,debug_pre_box_,label_,target_box_,detection_p,template_p,detection_label_p=\
+                sess.run([merged,train_op,loss,cls_loss,reg_loss,lr,debug_pre_cls,debug_pre_reg,debug_pre_score,debug_pre_box,label,target_box,detection,template,gt_box])
+                if step %100==0:
+                    summary_writer.add_summary(summary, step)
+                    debug(detection_p[0],template_p[0],detection_label_p[0],debug_pre_cls_[0],debug_pre_reg_[0],debug_pre_score_,debug_pre_box_,label_,target_box_,step+7582000,self.anchor_op)
             #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
             else:
                 _,loss_,cls_loss_,reg_loss_,lr_=sess.run([train_op,loss,cls_loss,reg_loss,lr])
