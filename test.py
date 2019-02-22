@@ -40,9 +40,9 @@ class Test():
         #===================input-output====================
 
         #======================hanning======================
-        w = np.outer(np.hanning(17), np.hanning(17))
-        w=np.stack([w,w,w,w,w],-1)
-        self.window=w.reshape((-1))
+        # w = np.outer(np.hanning(17), np.hanning(17))
+        # w=np.stack([w,w,w,w,w],-1)
+        # self.window=w.reshape((-1))
         #======================hanning======================
 
         #================start-tensorflow===================
@@ -61,14 +61,14 @@ class Test():
         for step in range(self.reader.img_num):
             img,box_ori,img_p,box_p,offset,ratio=self.reader.get_data(frame_n=step,pre_box=pre_box)
             #print(img.shape)
-            if step == 0:
-                cv2.imshow("template", img_p)
-                img_p_out = img_p*255
-                cv2.imwrite(os.path.join(self.vedio_dir, self.vedio_name.split('.')[0]+'_template.jpg'), img_p_out)
-
+            img_p_show = img_p
             img_p=np.expand_dims(img_p,axis=0)
             feed_dict={img_t:img_p,conv_c:conv_c_,conv_r:conv_r_}
             if step==0:
+                cv2.imshow("template", img_p_show)
+                img_p_out = img_p*255
+                cv2.imwrite(os.path.join(self.vedio_dir, self.vedio_name.split('.')[0]+'_template.jpg'), img_p_out)
+
                 fourcc=cv2.VideoWriter_fourcc('M','J','P','G')
                 img_h,img_w,_=img.shape
                 videoWriter=cv2.VideoWriter(os.path.join(self.vedio_dir,self.vedio_name),fourcc,30,(img_w,img_h))
@@ -121,29 +121,29 @@ class Test():
         bboxes[:,1]=delta[:,1]*self.anchors[:,3]+self.anchors[:,1]
         bboxes[:,2]=np.exp(delta[:,2])*self.anchors[:,2]
         bboxes[:,3]=np.exp(delta[:,3])*self.anchors[:,3]#[x,y,w,h]
-        def change(r):
-            return np.maximum(r, 1./r)
-        def sz(w, h):
-            pad = (w + h) * 0.5
-            sz2 = (w + pad) * (h + pad)
-            return np.sqrt(sz2)
-        def sz_wh(wh):
-            pad = (wh[0] + wh[1]) * 0.5
-            sz2 = (wh[0] + pad) * (wh[1] + pad)
-            return np.sqrt(sz2)
+        # def change(r):
+        #     return np.maximum(r, 1./r)
+        # def sz(w, h):
+        #     pad = (w + h) * 0.5
+        #     sz2 = (w + pad) * (h + pad)
+        #     return np.sqrt(sz2)
+        # def sz_wh(wh):
+        #     pad = (wh[0] + wh[1]) * 0.5
+        #     sz2 = (wh[0] + pad) * (wh[1] + pad)
+        #     return np.sqrt(sz2)
 
         # size penalty
-        s_c = change(sz(bboxes[:,2], bboxes[:,3]) / (sz_wh(target_sz)))  # scale penalty
-        r_c = change((target_sz[0] / target_sz[1]) / (bboxes[:,2] / bboxes[:,3]))  # ratio penalty
-
-        penalty = np.exp(-(r_c * s_c - 1.) * self.penalty_k)
-        pscore = penalty * score
+        # s_c = change(sz(bboxes[:,2], bboxes[:,3]) / (sz_wh(target_sz)))  # scale penalty
+        # r_c = change((target_sz[0] / target_sz[1]) / (bboxes[:,2] / bboxes[:,3]))  # ratio penalty
+        #
+        # penalty = np.exp(-(r_c * s_c - 1.) * self.penalty_k)
+        # pscore = penalty * score
 
         # window float
-        pscore = pscore * (1 - self.window_influence) + self.window * self.window_influence
-        best_pscore_id = np.argmax(pscore)
+        # pscore = pscore * (1 - self.window_influence) + self.window * self.window_influence
+        best_pscore_id = np.argmax(score)
 
-        self.lr = penalty[best_pscore_id] * score[best_pscore_id] * self.lr
+        #self.lr = penalty[best_pscore_id] * score[best_pscore_id] * self.lr
         bbox=bboxes[best_pscore_id].reshape((1,4))#[x,y,w,h]
 
         #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
@@ -162,8 +162,8 @@ class Test():
         box[0]=box[0]*ratio+offset[0]
         box[1]=box[1]*ratio+offset[1]
 
-        box[2] = pre_box[2] * (1 - self.lr) + box[2] * self.lr
-        box[3] = pre_box[3] * (1 - self.lr) + box[3] * self.lr
+        # box[2] = pre_box[2] * (1 - self.lr) + box[2] * self.lr
+        # box[3] = pre_box[3] * (1 - self.lr) + box[3] * self.lr
 
         box[0]=int(box[0]-(box[2]-1)/2)
         box[1]=int(box[1]-(box[3]-1)/2)

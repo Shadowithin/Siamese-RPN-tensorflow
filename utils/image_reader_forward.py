@@ -39,7 +39,7 @@ class Image_reader():
         if frame_n==0:
             img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,1)
         else:
-            img_p,box_p,offset,ratio=self.crop_resize(img,pre_box,2)
+            img_p,box_p,offset,ratio=self.crop_resize(img,pre_box,4)
         return img,box_ori,img_p,box_p,offset,ratio
     def get_vedio_data(self,img,box_ori=None,frame_n=0,pre_box=None,note=None):
         #[x,y,w,h]===x,y is left-top corner
