@@ -34,6 +34,7 @@ class SiameseRPN(Network):
         with tf.name_scope("SiameseRPN"):
             (self.feed('template', 'detection')
                 #vgg16 net block 1-4
+                .conv_3(3, 3, 64, 1, 1, padding="SAME", name="conv0_1")
                 .conv2(3, 3, 64, 1, 1, padding="SAME", name="conv1_1")
                 .conv2(3, 3, 64, 1, 1, padding="SAME", name="conv1_2")
                 .max_pool2(2, 2, 2, 2, padding='VALID', name="pool1")#63/127

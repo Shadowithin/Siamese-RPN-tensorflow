@@ -1,8 +1,8 @@
 import tensorflow as tf
 class Anchor_tf():
     def __init__(self):
-        self.width=255
-        self.height=255
+        self.width=511
+        self.height=511
     def center_to_corner(self,box):
         t_1=box[:,0]-(box[:,2]-1)/2
         t_2=box[:,1]-(box[:,3]-1)/2
@@ -69,13 +69,13 @@ class Anchor_tf():
 
         iou_value=tf.reshape(self.iou(all_box,gt_array),[-1])
 
-        pos_value,pos_index=tf.nn.top_k(iou_value,16)
+        pos_value,pos_index=tf.nn.top_k(iou_value,64)
         pos_mask_label=tf.ones_like(label)
         label=tf.where(tf.greater_equal(iou_value,pos_value[-1]),pos_mask_label,label)
 
         neg_index=tf.reshape(tf.where(tf.less(iou_value,0.3)),[-1])
         neg_index=tf.random_shuffle(neg_index)
-        neg_index=neg_index[0:48]
+        neg_index=neg_index[0:192]
         neg_index=tf.reduce_sum(tf.one_hot(neg_index,anchors.get_shape()[0]),axis=0)
         neg_mask_label=tf.zeros_like(label)
         label=tf.where(tf.equal(neg_index,1),neg_mask_label,label)
@@ -83,7 +83,7 @@ class Anchor_tf():
         target_box=self.diff_anchor_gt(gt,self.corner_to_center(all_box))
         temp_label=tf.transpose(tf.stack([label,label,label,label],axis=0),(1,0))
         target_inside_weight_box=tf.where(tf.equal(temp_label,1),temp_label,target_inside_weight_box)
-        target_outside_weight_box=target_outside_weight_box*1.0/48.
+        target_outside_weight_box=target_outside_weight_box*1.0/192.
         #print(target_outside_weight_box[np.where(target_outside_weight_box>0)])
         return label,target_box,target_inside_weight_box,target_outside_weight_box,all_box
 

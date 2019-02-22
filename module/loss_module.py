@@ -4,7 +4,7 @@ from module.gen_ancor import Anchor
 from module.anchor_tf import Anchor_tf
 class Loss_op():
     def __init__(self):
-        self.anchors=tf.convert_to_tensor(Anchor(17,17).anchors)
+        self.anchors=tf.convert_to_tensor(Anchor(49,49).anchors)
         self.anchor_tf=Anchor_tf()
     def loss(self,gt,pre_score,pre_box):
         with tf.name_scope("loss_op"):
