@@ -24,11 +24,12 @@ class Train():
         self.model_dir=cfg.model_dir
         self.pre_trained_dir=cfg.pre_trained_dir
         self.anchor_op=Anchor(17,17)
-        self.is_debug=False
+        self.is_debug=True
 
     def train(self):
+
         template,_,detection,gt_box,_,_=self.reader.get_batch()
-        net=SiameseRPN({'template':template,'detection':detection}, initial_weights="vgg16_weights.npz")
+        net=SiameseRPN({'template':template,'detection':detection})
 
         pre_cls=net.layers['cls']
         pre_reg=net.layers['reg']

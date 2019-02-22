@@ -74,25 +74,28 @@ class Image_reader():
         #===================input-producer===========================
     def read_from_disk(self,queue):
         # randomly pick a image index
-        index_t=queue#tf.random_shuffle(self.input_list)[0]
+        index_t=queue[0]#tf.random_shuffle(self.input_list)[0]
         # find the start and end index of the sequence that the image belong to
         index_min=tf.reshape(tf.where(tf.less_equal(self.node,index_t)),[-1])
         node_min=self.node[index_min[-1]]
         node_max=self.node[index_min[-1]+1]
         # randomly choose the frame interval between 30 and 100
-        interval = tf.random_uniform([1], 30, 100, tf.uint8)
-        index_d_list=[tf.cond(tf.greater(index_t-interval,node_min),lambda:index_t-interval,lambda:node_min), tf.cond(tf.less(index_t+interval,node_max),lambda:index_t+interval,lambda:node_max)]
+        interval = tf.random_uniform([], 30, 100, tf.float32)
+        interval = tf.cast(interval, tf.int32)
+        index_d_list=[tf.cond(tf.greater(index_t-interval,node_min),lambda:index_t-interval,lambda:node_min), tf.cond(tf.less(index_t+interval,node_max),lambda:index_t+interval,lambda:node_max-1)]
         index_d_list=tf.random_shuffle(index_d_list)
         index_d=index_d_list[0]
 
         constant_t=tf.read_file(self.img_list[index_t])
         template=tf.image.decode_jpeg(constant_t, channels=3)
-        template=tf.subtract(template, CHANNEL_MEAN)
-        template=template[:,:,::-1]
+        template=tf.cast(template,tf.int16)
+        #template=tf.subtract(template, CHANNEL_MEAN)
+        #template=template[:,:,::-1] RGB or BGR?
         constant_d=tf.read_file(self.img_list[index_d])
         detection=tf.image.decode_jpeg(constant_d, channels=3)
-        detection=tf.subtract(detection, CHANNEL_MEAN)
-        detection=detection[:,:,::-1]
+        detection=tf.cast(detection, tf.int16)
+        #detection=tf.subtract(detection, CHANNEL_MEAN)
+        #detection=detection[:,:,::-1]
 
         template_label=self.label_list[index_t]
         detection_label=self.label_list[index_d]
@@ -154,7 +157,7 @@ class Image_reader():
 
         if rate==1:
             crop_img=img[y1:y2,x1:x2,:]
-            resize_img=tf.image.resize_images(crop_img,(127,127))
+            resize_img=tf.image.resize_images(crop_img,(127,127))/255.
             ratio=tf.to_float(side)/127.
             # label is the center of the object
             label=tf.cast([63,63,tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
@@ -190,7 +193,7 @@ class Image_reader():
                 crop_img=img[y1:y2,x1:x2,:]
             else:
                 crop_img=img[y1:y2,x1:x2,:]
-            resize_img=tf.image.resize_images(crop_img,(255,255))
+            resize_img=tf.image.resize_images(crop_img,(255,255))/255.
             ratio=tf.to_float(side)/255.
             label=tf.cast([tf.to_float(127-tf.to_float(random_x)/ratio),tf.to_float(127-tf.to_float(random_y)/ratio),tf.to_float(w)/ratio,tf.to_float(h)/ratio],tf.int32)
             label=tf.cast(label,tf.float32)

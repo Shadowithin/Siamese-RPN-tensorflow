@@ -381,7 +381,7 @@ class Network(object):
         return merge
     @layer
     def reshape(self,input, rate,name):
-        shape=tf.shape(input)
+        shape=input.shape
         if rate==2:
             #output=tf.reshape(input,(shape[1],shape[2],int(shape[3]/(rate*self.k)),int(rate*self.k)),name=name)
             output=tf.reshape(input,(shape[1],shape[2],256,10),name=name)

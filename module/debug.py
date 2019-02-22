@@ -1,10 +1,12 @@
 import numpy as np
 from config import cfg
 import cv2
-from numba import jit
-@jit
+# from numba import jit
+# @jit
+CHANNEL_MEAN = [124, 117, 104]
 def debug(img,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_op):
-    img=(img*255).astype(np.uint8)
+    #img=(img+np.array(CHANNEL_MEAN).reshape((1,1,3))).astype(np.uint8)
+    img = (img*255.).astype(np.uint8)
     #print('=============================================================')
     # pre_cls=pre_cls.reshape((-1,2))
     # pre_reg=pre_reg.reshape((-1,4))
@@ -16,9 +18,9 @@ def debug(img,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_
     # print(pre_score[np.where(label==1)])
     # print('===========box===========')
     # print('===========cls===========')
-    w = np.outer(np.hanning(17), np.hanning(17))
-    w=np.stack([w,w,w,w,w],-1)
-    w=w.reshape((-1))
+    # w = np.outer(np.hanning(17), np.hanning(17))
+    # w=np.stack([w,w,w,w,w],-1)
+    # w=w.reshape((-1))
     #w=np.tile(w.flatten(), 5)
 
     # index_cls=np.argmax(pre_cls[:,1])
@@ -98,9 +100,14 @@ def debug(img,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_
         color = np.random.random((3, )) * 0.6 + 0.4
         color = color * 255
         color = color.astype(np.int32).tolist()
-        cv2.rectangle(img,(int(bbox[0]),int(bbox[1])),(int(bbox[2]),int(bbox[3])),color,1)
-    cv2.rectangle(img,(int(b[0][0]),int(b[0][1])),(int(b[0][2]),int(b[0][3])),(0,0,0),2)
-
+        try:
+            cv2.rectangle(img,(int(bbox[0]),int(bbox[1])),(int(bbox[2]),int(bbox[3])),color,1)
+        except:
+            pass
+    try:
+        cv2.rectangle(img,(int(b[0][0]),int(b[0][1])),(int(b[0][2]),int(b[0][3])),(0,0,0),2)
+    except:
+        pass
     cv2.rectangle(img,(int(anchor[0][0]),int(anchor[0][1])),(int(anchor[0][2]),int(anchor[0][3])),(255,0,0),1)
     #============pre_box===========
 
