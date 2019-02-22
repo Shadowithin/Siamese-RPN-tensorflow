@@ -38,23 +38,36 @@ class Train():
         loss=cls_loss+reg_loss
 
         #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
-        debug_pre_cls=tf.nn.softmax(pre_cls)
-        debug_pre_reg=pre_reg
-        debug_pre_score=tf.nn.softmax(tf.reshape(pre_cls,(-1,2)))
-        debug_pre_box=tf.reshape(pre_reg,(-1,4))
+        with tf.name_scope('debug'):
+            pre_cls_shape = pre_cls.shape
+            debug_pre_cls=tf.reshape(pre_cls,(pre_cls_shape[1],pre_cls_shape[2],net.k,2))# 17*17*5*2
+            debug_pre_cls=tf.expand_dims(tf.transpose(tf.nn.softmax(debug_pre_cls)[:,:,:,1], (2,0,1)),axis=-1)# score map,5*17*17*1
+            debug_pre_reg=pre_reg
+            debug_pre_score=tf.nn.softmax(tf.reshape(pre_cls,(-1,2)))
+            debug_pre_box=tf.reshape(pre_reg,(-1,4))
         #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
 
-        saver=tf.train.Saver(max_to_keep=50)
         with tf.name_scope('train_op'):
             global_step=tf.Variable(0,trainable=False)
             lr=tf.train.exponential_decay(0.001,global_step,self.decay_step,self.decay_rate,staircase=True,name='lr')
             train_op=tf.train.GradientDescentOptimizer(lr).minimize(loss,global_step)
 
+        with tf.name_scope('summary'):
+            tf.summary.scalar('cls_loss', cls_loss)
+            tf.summary.scalar('reg_loss', reg_loss)
+            tf.summary.scalar('total_loss', loss)
+            tf.summary.scalar('learning_rate', lr)
+            tf.summary.histogram('pre_score', debug_pre_score)
+            tf.summary.image('score_map', debug_pre_cls, max_outputs=5)
+            merge_summary=tf.summary.merge_all()
+
+        saver = tf.train.Saver(max_to_keep=50)
         coord=tf.train.Coordinator()
         config=tf.ConfigProto()
         config.gpu_options.allow_growth=True
         sess=tf.InteractiveSession(config=config)
         threads=tf.train.start_queue_runners(coord=coord,sess=sess)
+        summary_writer=tf.summary.FileWriter('logs', sess.graph)
         sess.run(tf.global_variables_initializer())
 
 
@@ -65,22 +78,28 @@ class Train():
             print(" [!] Load failed...")
         epoch=0
         t=time.time()
-        for step in range(self.step_num):
+        step = 0
+        while (step < self.step_num):
             #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
             if self.is_debug:
-                _,loss_,cls_loss_,reg_loss_,lr_,debug_pre_cls_,debug_pre_reg_,debug_pre_score_,debug_pre_box_,label_,target_box_,detection_p,detection_label_p=\
-                sess.run([train_op,loss,cls_loss,reg_loss,lr,debug_pre_cls,debug_pre_reg,debug_pre_score,debug_pre_box,label,target_box,detection,gt_box])
-                if step %1000==0:
-                    debug(detection_p[0],detection_label_p[0],debug_pre_cls_,debug_pre_reg_,debug_pre_score_,debug_pre_box_,label_,target_box_,step+7582000,self.anchor_op)
+                _,summaries,loss_,cls_loss_,reg_loss_,lr_,debug_pre_cls_,debug_pre_reg_,debug_pre_score_,debug_pre_box_,label_,target_box_,detection_p,template_p,detection_label_p,g_step=\
+                sess.run([train_op,merge_summary,loss,cls_loss,reg_loss,lr,debug_pre_cls,debug_pre_reg,debug_pre_score,debug_pre_box,label,target_box,detection,template,gt_box,global_step])
+                if step %500==0:
+                    debug(detection_p[0],template_p[0],detection_label_p[0],debug_pre_cls_,debug_pre_reg_,debug_pre_score_,debug_pre_box_,label_,target_box_,step,self.anchor_op)
+                    summary_writer.add_summary(summaries, global_step=g_step)
             #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
             else:
-                _,loss_,cls_loss_,reg_loss_,lr_=sess.run([train_op,loss,cls_loss,reg_loss,lr])
+                _,loss_,cls_loss_,reg_loss_,lr_,g_step=sess.run([train_op,loss,cls_loss,reg_loss,lr,global_step])
+            if step == 0:
+                step+=g_step
             if step %100==0:
                 print('step={},loss={},cls_loss={},reg_loss={},lr={},time={}'.format(step,loss_,cls_loss_,reg_loss_,lr_,time.time()-t))
                 t=time.time()
             if step %self.save_per_epoch==0 and step>0:
                 epoch+=1
-                self.save(saver,sess,self.model_dir,epoch)
+                self.save(saver,sess,self.model_dir,g_step)
+            step+=1
+
         coord.request_stop()
         coord.join(threads)
 
@@ -93,11 +112,11 @@ class Train():
             return True
         else:
             return False
-    def save(self,saver,sess,ckpt_path,epoch):
+    def save(self,saver,sess,ckpt_path,global_step):
         if not os.path.exists(ckpt_path):
             os.makedirs(ckpt_path)
         model_path=os.path.join(ckpt_path,'model')
-        saver.save(sess,model_path,epoch)
+        saver.save(sess,model_path,global_step)
         print('saved model')
 if __name__=='__main__':
     t=Train()

@@ -4,9 +4,14 @@ import cv2
 # from numba import jit
 # @jit
 CHANNEL_MEAN = [124, 117, 104]
-def debug(img,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_op):
+def debug(img,template,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_op):
     #img=(img+np.array(CHANNEL_MEAN).reshape((1,1,3))).astype(np.uint8)
     img = (img*255.).astype(np.uint8)
+    img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
+    #img = img[:, :, ::-1]
+    template = (template * 255.).astype(np.uint8)
+    template = cv2.cvtColor(template,cv2.COLOR_RGB2BGR)
+    #template = template[:, :, ::-1]
     #print('=============================================================')
     # pre_cls=pre_cls.reshape((-1,2))
     # pre_reg=pre_reg.reshape((-1,4))
@@ -131,7 +136,8 @@ def debug(img,gt,pre_cls,pre_reg,pre_score,pre_box,label,target_box,step,anchor_
     gt[2]=gt[0]+gt[2]
     gt[3]=gt[1]+gt[3]
     cv2.rectangle(img,(int(gt[0]),int(gt[1])),(int(gt[2]),int(gt[3])),(0,0,255),2)
-    cv2.imwrite(cfg.debug_dir+'/'+str(step)+'.jpg',img)
+    cv2.imwrite(cfg.debug_dir+'/'+str(step)+'_result.jpg',img)
+    cv2.imwrite(cfg.debug_dir + '/' + str(step) + '_template.jpg', template)
     #============gt_box===========
     # print('===========reg===========')
     # print(b.astype(np.int32))

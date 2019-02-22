@@ -65,43 +65,46 @@ class Image_reader():
         #====================transform-list==========================
 
         #===================input-producer===========================
-        self.input_list=tf.convert_to_tensor(self.input_list)
-        self.img_list=tf.convert_to_tensor(self.img_list)
-        self.label_list=tf.convert_to_tensor(self.label_list)
-        self.node=tf.convert_to_tensor(self.node)
-        self.queue=tf.train.slice_input_producer([self.input_list],shuffle=True)
-        self.template_p,self.template_label_p,self.detection_p,self.detection_label_p,self.offset,self.ratio,self.detection,self.detection_label,self.index_t,self.index_d=self.read_from_disk(self.queue)
+        with tf.name_scope("input_producer"):
+            self.input_list=tf.convert_to_tensor(self.input_list)
+            self.img_list=tf.convert_to_tensor(self.img_list)
+            self.label_list=tf.convert_to_tensor(self.label_list)
+            self.node=tf.convert_to_tensor(self.node)
+            self.queue=tf.train.slice_input_producer([self.input_list],shuffle=True)
+            self.template_p,self.template_label_p,self.detection_p,self.detection_label_p,self.offset,self.ratio,self.detection,self.detection_label,self.index_t,self.index_d=self.read_from_disk(self.queue)
         #===================input-producer===========================
     def read_from_disk(self,queue):
         # randomly pick a image index
-        index_t=queue[0]#tf.random_shuffle(self.input_list)[0]
-        # find the start and end index of the sequence that the image belong to
-        index_min=tf.reshape(tf.where(tf.less_equal(self.node,index_t)),[-1])
-        node_min=self.node[index_min[-1]]
-        node_max=self.node[index_min[-1]+1]
-        # randomly choose the frame interval between 30 and 100
-        interval = tf.random_uniform([], 30, 100, tf.float32)
-        interval = tf.cast(interval, tf.int32)
-        index_d_list=[tf.cond(tf.greater(index_t-interval,node_min),lambda:index_t-interval,lambda:node_min), tf.cond(tf.less(index_t+interval,node_max),lambda:index_t+interval,lambda:node_max-1)]
-        index_d_list=tf.random_shuffle(index_d_list)
-        index_d=index_d_list[0]
+        with tf.name_scope("read_image"):
+            index_t=queue[0]#tf.random_shuffle(self.input_list)[0]
+            # find the start and end index of the sequence that the image belong to
+            index_min=tf.reshape(tf.where(tf.less_equal(self.node,index_t)),[-1])
+            node_min=self.node[index_min[-1]]
+            node_max=self.node[index_min[-1]+1]
+            # randomly choose the frame interval between 30 and 100
+            interval = tf.random_uniform([], 30, 100, tf.float32)
+            interval = tf.cast(interval, tf.int32)
+            index_d_list=[tf.cond(tf.greater(index_t-interval,node_min),lambda:index_t-interval,lambda:node_min), tf.cond(tf.less(index_t+interval,node_max),lambda:index_t+interval,lambda:node_max-1)]
+            index_d_list=tf.random_shuffle(index_d_list)
+            index_d=index_d_list[0]
 
-        constant_t=tf.read_file(self.img_list[index_t])
-        template=tf.image.decode_jpeg(constant_t, channels=3)
-        template=tf.cast(template,tf.int16)
-        #template=tf.subtract(template, CHANNEL_MEAN)
-        #template=template[:,:,::-1] RGB or BGR?
-        constant_d=tf.read_file(self.img_list[index_d])
-        detection=tf.image.decode_jpeg(constant_d, channels=3)
-        detection=tf.cast(detection, tf.int16)
-        #detection=tf.subtract(detection, CHANNEL_MEAN)
-        #detection=detection[:,:,::-1]
+            constant_t=tf.read_file(self.img_list[index_t])
+            template=tf.image.decode_jpeg(constant_t, channels=3)
+            template=tf.cast(template,tf.int16)
+            #template=tf.subtract(template, CHANNEL_MEAN)
+            #template=template[:,:,::-1] RGB or BGR?
+            constant_d=tf.read_file(self.img_list[index_d])
+            detection=tf.image.decode_jpeg(constant_d, channels=3)
+            detection=tf.cast(detection, tf.int16)
+            #detection=tf.subtract(detection, CHANNEL_MEAN)
+            #detection=detection[:,:,::-1]
 
-        template_label=self.label_list[index_t]
-        detection_label=self.label_list[index_d]
+            template_label=self.label_list[index_t]
+            detection_label=self.label_list[index_d]
 
-        template_p,template_label_p,_,_=self.crop_resize(template,template_label,1)
-        detection_p,detection_label_p,offset,ratio=self.crop_resize(detection,detection_label,2)
+        with tf.name_scope("crop_resize"):
+            template_p,template_label_p,_,_=self.crop_resize(template,template_label,1)
+            detection_p,detection_label_p,offset,ratio=self.crop_resize(detection,detection_label,2)
 
         return template_p,template_label_p,detection_p,detection_label_p,offset,ratio,detection,detection_label,index_t,index_d
 
