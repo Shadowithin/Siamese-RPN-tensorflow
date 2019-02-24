@@ -49,6 +49,7 @@ class Network(object):
             self.initial_weights = np.load(initial_weights)
         else:
             self.initial_weights=None
+        self.frame = tf.placeholder(tf.int16, shape=[], name='nframe')
         self.setup()
 
     def setup(self):
@@ -213,6 +214,46 @@ class Network(object):
                 detection = tf.nn.relu(output[1])
                 output = [template, detection]
         return output
+
+    @layer
+    def conv_td(self,
+              input,
+              k_h,
+              k_w,
+              c_o,
+              s_h,
+              s_w,
+              flag,
+              name,
+              relu=True,
+              padding=DEFAULT_PADDING,
+              group=1,
+              biased=True):
+        # Verify that the padding is acceptable
+        self.validate_padding(padding)
+        # Get the number of channels in the input
+        c_i = input[0].get_shape()[-1]
+        # Verify that the grouping parameter is valid
+        assert c_i % group == 0
+        assert c_o % group == 0
+        # Convolution for a given input and kernel
+        convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
+            kernel_t = self.make_var(name + '_t', shape=[k_h, k_w, int(c_i) / group, c_o])
+            kernel_d = self.make_var(name + '_d', shape=[k_h, k_w, int(c_i) / group, c_o])
+            kernel = tf.cond(tf.greater(flag, 0), lambda : kernel_d, lambda : kernel_t)
+            if group == 1:
+                # This is the common-case. Convolve the input without any further complications.
+                output = convolve(input, kernel)
+            # Add the biases
+            if biased:
+                biases = self.make_var(name + '_b', [c_o])
+                output = tf.nn.bias_add(output, biases)
+            if relu:
+                # ReLU non-linearity
+                output = tf.nn.relu(output)
+        return output
+
     @layer
     def conv1(self,
              input,

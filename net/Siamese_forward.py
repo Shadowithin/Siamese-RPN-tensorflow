@@ -34,6 +34,7 @@ class SiameseRPN(Network):
 
         (self.feed('img')
             #vgg16 net block 1-4
+            .conv_td(3, 3, 64, 1, 1, flag=self.frame, padding="SAME", name="conv0_1")
             .conv(3, 3, 64, 1, 1, padding="SAME", name="conv1_1")
             .conv(3, 3, 64, 1, 1, padding="SAME", name="conv1_2")
             .max_pool(2, 2, 2, 2, padding='VALID', name="pool1")#63/127

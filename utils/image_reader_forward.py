@@ -34,7 +34,10 @@ class Image_reader():
         img=cv2.imread(os.path.join(self.img_path,self.imgs[frame_n]))
         img=cv2.cvtColor(img,cv2.COLOR_RGB2BGR)# actually bgr 2 rgb
         #img_submean = np.subtract(img, CHANNEL_MEAN)
-        box_ori=self.boxes[frame_n]#[x,y,w,h]===x,y is left-top corner
+        try:
+            box_ori=self.boxes[frame_n]#[x,y,w,h]===x,y is left-top corner
+        except:
+            box_ori = None
         #when current frame is the first frame, return the target img, else return detection img
         if frame_n==0:
             img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,1)
@@ -149,10 +152,10 @@ class Image_reader():
             label=np.array([63,63,w/ratio,h/ratio]).astype(np.int32)
             label=label.astype(np.float32)
         if rate==4:
-            shift_max_x = max(x-x1, img.shape[1]-x2)
-            shift_min_x = -max(x1, x2-x-w)
-            shift_max_y = max(y-y1, img.shape[0]-y2)
-            shift_min_y = -max(y1, y2-y-h)
+            shift_max_x = min(x-x1, img.shape[1]-x2-1)
+            shift_min_x = -min(x1, x2-x-w)
+            shift_max_y = min(y-y1, img.shape[0]-y2-1)
+            shift_min_y = -min(y1, y2-y-h)
 
             random_x = np.random.uniform(shift_min_x, shift_max_x, size=[])
             random_y = np.random.uniform(shift_min_y, shift_max_y, size=[])

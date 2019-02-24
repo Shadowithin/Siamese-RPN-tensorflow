@@ -23,7 +23,7 @@ class Config:
         self._configs["lr"]                 = 0.12
         # Vedio Config
         self._configs["vedio_dir"]          = './data/vedio'
-        self._configs["vedio_name"]         = self._configs["img_path"].split('/')[-1]+'_vgg_out.mp4'
+        self._configs["vedio_name"]         = self._configs["img_path"].split('/')[-1]+'_out.mp4'
         #Debug
         self._configs["debug_dir"]          = "./debug"
     @property

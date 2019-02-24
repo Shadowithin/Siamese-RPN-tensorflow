@@ -39,7 +39,7 @@ class Train():
 
         #+++++++++++++++++++++debug++++++++++++++++++++++++++++++
         with tf.name_scope('debug'):
-            pre_cls_shape = pre_cls.shape
+            pre_cls_shape = tf.shape(pre_cls)
             debug_pre_cls=tf.reshape(pre_cls,(pre_cls_shape[1],pre_cls_shape[2],net.k,2))# 17*17*5*2
             debug_pre_cls=tf.expand_dims(tf.transpose(tf.nn.softmax(debug_pre_cls)[:,:,:,1], (2,0,1)),axis=-1)# score map,5*17*17*1
             debug_pre_reg=pre_reg
