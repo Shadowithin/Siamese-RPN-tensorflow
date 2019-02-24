@@ -10,8 +10,10 @@ import sys
 class Test():
     def __init__(self):
         if len(sys.argv) > 1:
-            self.reader = Image_reader(img_path=sys.argv[1], label_path=sys.argv[1]+'/groundtruth.txt')
+            self.img_path = sys.argv[1]
+            self.reader = Image_reader(img_path=self.img_path, label_path=self.img_path+'/groundtruth.txt')
         else:
+            self.img_path = cfg.img_path
             self.reader=Image_reader(img_path=cfg.img_path,label_path=cfg.label_path)
         self.model_dir=cfg.model_dir
         self.anchor_op=Anchor(49,49)
@@ -67,17 +69,19 @@ class Test():
         frames=[]
         for step in range(self.reader.img_num):
             img,box,img_p,box_p,offset,ratio=self.reader.get_data(frame_n=step,pre_box=box_ori)
-            fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+            #fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
             img_h, img_w, _ = img.shape
             # videoWriter_box = cv2.VideoWriter(
             #     os.path.join(self.vedio_dir, self.vedio_name.split('.')[0] + '_box.' + self.vedio_name.split('.')[1]),
             #     fourcc, 30, (512, 512))
-            videoWriter_box = cv2.VideoWriter("test.mp4", fourcc, 30, (512,512))
+            # videoWriter_box = cv2.VideoWriter("test.mp4", fourcc, 30, (512,512))
 
             if step==0:
                 img_p_show = cv2.cvtColor((img_p*255).astype(np.uint8),cv2.COLOR_RGB2BGR)
                 cv2.imshow("template", img_p_show)
-                cv2.imwrite(os.path.join(self.vedio_dir, self.vedio_name.split('.')[0]+'_template.jpg'), img_p_show)
+                if not os.path.exists(self.img_path+'/results'):
+                    os.makedirs(self.img_path+'/results')
+                cv2.imwrite(self.img_path+'/results/template.jpg', img_p_show)
             img_p=np.expand_dims(img_p,axis=0)
             feed_dict={img_t:img_p,conv_c:conv_c_,conv_r:conv_r_, net.frame: step}
             if step==0:
@@ -111,8 +115,9 @@ class Test():
                 # img=cv2.rectangle(img,(int(box_ori[0]),int(box_ori[1])),(int(box_ori[2]),int(box_ori[3])),(0,0,0),1)
                 #+++++++++++++++++++++gt_box++++++++++++++++++++++++++++++
 
-                videoWriter_box.write(img_p_show)
+                #videoWriter_box.write(img_p_show)
                 cv2.imshow('img',img_p_show)
+                cv2.imwrite(self.img_path+"/results/%04d.jpg"%step, img_p_show)
                 cv2.waitKey(10)
 
                 #
@@ -120,7 +125,7 @@ class Test():
                 # pre_box[3]=pre_box[3]-pre_box[1]
         print('video are being synthesized. please wait for one minute..............')
         #videoWriter.release()
-        videoWriter_box.release()
+        #videoWriter_box.release()
         print('vedio is saved in '+self.vedio_dir)
 
     def nms(self,scores,delta):

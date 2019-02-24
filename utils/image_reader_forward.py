@@ -21,7 +21,7 @@ class Image_reader():
             #===========label===============
 
             #===========img_list============
-            self.imgs=[x for x in os.listdir(self.img_path) if 'jpg' in x]
+            self.imgs=[x for x in os.listdir(self.img_path) if ('jpg' in x or 'png' in x or 'bmp' in x)]
             self.imgs.sort()
             self.img_num=len(self.imgs)
             #===========img_list============
