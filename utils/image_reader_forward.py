@@ -30,19 +30,19 @@ class Image_reader():
         else:
             print('error')
 
-    def get_data(self,frame_n=0,pre_box=None):
+    def get_data(self,frame_n=0):
         img=cv2.imread(os.path.join(self.img_path,self.imgs[frame_n]))
         img=cv2.cvtColor(img,cv2.COLOR_RGB2BGR)# actually bgr 2 rgb
         #img_submean = np.subtract(img, CHANNEL_MEAN)
         try:
             box_ori=self.boxes[frame_n]#[x,y,w,h]===x,y is left-top corner
         except:
-            box_ori = None
+            box_ori = self.boxes[-1]
         #when current frame is the first frame, return the target img, else return detection img
         if frame_n==0:
             img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,1)
         else:
-            img_p,box_p,offset,ratio=self.crop_resize(img,pre_box,4)
+            img_p,box_p,offset,ratio=self.crop_resize(img,box_ori,4)
         return img,box_ori,img_p,box_p,offset,ratio
     def get_vedio_data(self,img,box_ori=None,frame_n=0,pre_box=None,note=None):
         #[x,y,w,h]===x,y is left-top corner
@@ -65,7 +65,7 @@ class Image_reader():
 
         return box
 
-    def crop_resize(self,img,label,rate=1,note=None):
+    def crop_resize(self,img,label,rate=1,random_patch=False,note=None):
         #label=[x,y,w,h]===x,y is left-top corner
         #print(label)
         x,y,w,h=label
@@ -141,8 +141,7 @@ class Image_reader():
         y1=int(y-int((side-h)/2))
         x2=int(x1+side)
         y2=int(y1+side)
-        crop_img=img[y1:y2,x1:x2,:]
-
+        crop_img = img[y1:y2, x1:x2, :]
 
         assert crop_img.shape[0]==side
         assert crop_img.shape[1]==side
@@ -152,25 +151,33 @@ class Image_reader():
             label=np.array([63,63,w/ratio,h/ratio]).astype(np.int32)
             label=label.astype(np.float32)
         if rate==4:
-            shift_max_x = min(x-x1, img.shape[1]-x2-1)
-            shift_min_x = -min(x1, x2-x-w)
-            shift_max_y = min(y-y1, img.shape[0]-y2-1)
-            shift_min_y = -min(y1, y2-y-h)
+            if random_patch:
+                shift_max_x = min(x-x1, img.shape[1]-x2-1)
+                shift_min_x = -min(x1, x2-x-w)
+                shift_max_y = min(y-y1, img.shape[0]-y2-1)
+                shift_min_y = -min(y1, y2-y-h)
 
-            random_x = np.random.uniform(shift_min_x, shift_max_x, size=[])
-            random_y = np.random.uniform(shift_min_y, shift_max_y, size=[])
+                random_x = np.random.uniform(shift_min_x, shift_max_x, size=[])
+                random_y = np.random.uniform(shift_min_y, shift_max_y, size=[])
 
-            x1 = x1 + random_x
-            x2 = x2 + random_x
-            y1 = y1 + random_y
-            y2 = y2 + random_y
+                x1 = int(x1 + random_x)
+                x2 = int(x2 + random_x)
+                y1 = int(y1 + random_y)
+                y2 = int(y2 + random_y)
 
-            offset = [x1, y1]
-
-            resize_img=cv2.resize(crop_img,(511,511))/255.
-            ratio=side/255
-            label=np.array([255-random_x/ratio,255-random_y/ratio,w/ratio,h/ratio]).astype(np.int32)
-            label=label.astype(np.float32)
+                offset = [x1, y1]
+                crop_img = img[y1:y2, x1:x2, :]
+                resize_img=cv2.resize(crop_img,(511,511))/255.
+                ratio=side/255
+                label=np.array([255-random_x/ratio,255-random_y/ratio,w/ratio,h/ratio]).astype(np.int32)
+                label=label.astype(np.float32)
+            else:
+                offset = [x1, y1]
+                crop_img = img[y1:y2, x1:x2, :]
+                resize_img=cv2.resize(crop_img,(511,511))/255.
+                ratio=side/255
+                label=np.array([255/ratio,255/ratio,w/ratio,h/ratio]).astype(np.int32)
+                label=label.astype(np.float32)
 
         return resize_img,label,offset,ratio
 

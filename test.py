@@ -68,7 +68,7 @@ class Test():
 
         frames=[]
         for step in range(self.reader.img_num):
-            img,box,img_p,box_p,offset,ratio=self.reader.get_data(frame_n=step,pre_box=box_ori)
+            img,box,img_p,box_p,offset,ratio=self.reader.get_data(frame_n=step)
             #fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
             img_h, img_w, _ = img.shape
             # videoWriter_box = cv2.VideoWriter(
@@ -87,7 +87,7 @@ class Test():
             if step==0:
                 #init
                 conv_c_,conv_r_=sess.run([pre_conv_c,pre_conv_r],feed_dict=feed_dict)
-                box_ori = box
+                #box_ori = box
                 #pre_box=box_ori#[x,y,w,h]===x,y is left-top corner
             else:
                 frames.append(img[:,:,::-1])
