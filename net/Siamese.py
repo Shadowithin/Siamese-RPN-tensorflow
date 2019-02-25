@@ -66,4 +66,5 @@ class SiameseRPN(Network):
             (self.feed('t_c_k','d_c')
                  .cf_conv(padding='VALID', name='cls'))#[1,17,17,2k]
             (self.feed('t_r_k','d_r')
-                 .cf_conv(padding='VALID', name='reg'))#[1,17,17,4k]
+                 .cf_conv(padding='VALID', name='reg_0')#[1,17,17,4k]
+                 .conv(3, 3, self.k*4,1,1, padding='SAME', name='reg'))
